@@ -226,6 +226,11 @@ main(int ac, char **av)
 			exit(1);
 		} else if (pid > 0) {
 			/* parent */
+			FILE *fp;
+			if ((fp = fopen("/var/run/crond.pid", "w")) != NULL) {
+				fprintf(fp, "%d\n", pid);
+				fclose(fp);
+			}
 			exit(0);
 		}
 		/* child continues */

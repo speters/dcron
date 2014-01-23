@@ -1,9 +1,21 @@
 # Makefile for Dillon's crond and crontab
 VERSION = 4.5
 
+TOOLCHAIN     = arm-linux-gnueabi
+CC   = $(TOOLCHAIN)-gcc
+CP   = $(TOOLCHAIN)-objcopy
+OD   = $(TOOLCHAIN)-objdump
+GDB  = $(TOOLCHAIN)-gdb
+SIZE = $(TOOLCHAIN)-size
+CFLAGS=-O2 -march=armv5te -mtune=arm926ej-s -Fno-strict-aliasing -msoft-float -D__GCC_FLOAT_NOT_NEEDED -I/usr/arm-linux-gnueabi/include
+
+ifndef DESTDIR
+DESTDIR	= ./installroot
+endif
+
 # these variables can be configured by e.g. `make SCRONTABS=/different/path`
-PREFIX = /usr/local
-CRONTAB_GROUP = wheel
+PREFIX = /usr
+CRONTAB_GROUP = adm
 SCRONTABS = /etc/cron.d
 CRONTABS = /var/spool/cron/crontabs
 CRONSTAMPS = /var/spool/cron/cronstamps
@@ -39,7 +51,7 @@ DEFS =  -DVERSION='"$(VERSION)"' \
 		-DTIMESTAMP_FMT='"$(TIMESTAMP_FMT)"'
 
 # save variables needed for `make install` in config
-all: $(PROTOS) crond crontab ;
+all: crond crontab ;
 	rm -f config
 	echo "PREFIX = $(PREFIX)" >> config
 	echo "SBINDIR = $(SBINDIR)" >> config
@@ -54,10 +66,10 @@ protos.h: $(SRCS) $(TABSRCS)
 	fgrep -h Prototype $(SRCS) $(TABSRCS) > protos.h
 
 crond: $(OBJS)
-	$(CC) $(LDFLAGS) $^ $(LIBS) -o crond
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ $(LIBS) -o crond
 
 crontab: $(TABOBJS)
-	$(CC) $(LDFLAGS) $^ -o crontab
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o crontab
 
 %.o: %.c defs.h $(PROTOS)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(DEFS) $< -o $@
@@ -70,6 +82,9 @@ install:
 	$(INSTALL_DIR) $(DESTDIR)$(SCRONTABS)
 	$(INSTALL_DIR) $(DESTDIR)$(CRONTABS)
 	$(INSTALL_DIR) $(DESTDIR)$(CRONSTAMPS)
+	$(INSTALL_DATA) extra/crond.service $(DESTDIR)/lib/systemd/system/crond.service
+	$(INSTALL_PROGRAM) -m0754 -g root extra/crond.rc $(DESTDIR)/etc/init.d/crond
+	$(INSTALL_PROGRAM) -m0754 -g root extra/run-cron $(DESTDIR)$(BINDIR)/run-cron
 
 clean: force
 	rm -f *.o $(PROTOS)
